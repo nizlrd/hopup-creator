@@ -41,6 +41,9 @@ struct route {
     bool show_labels=true;
     std::string stand_label="STAND HERE", look_label="LOOK HERE";
     bool shown=true;
+    bool vehicle_guide=false; // Optional visual placement guide; never interacts with vehicles.
+    int vehicle_shape=0; // 0 = dot, 1 = simple wireframe vehicle outline
+    std::string vehicle_label="PUT VEHICLE HERE";
     std::wstring source_path; // Runtime identity, never taken from route contents.
 };
 inline bool valid_fade(float full, float hidden) {
@@ -61,7 +64,7 @@ inline bool valid(const step &s) {
 }
 inline bool read_route(std::istream &in, route &out) {
     route candidate; std::string magic; int version = 0;
-    if (!(in >> magic >> version >> std::quoted(candidate.name)) || magic != "HOPOUT" || (version < 1 || version > 4) ||
+    if (!(in >> magic >> version >> std::quoted(candidate.name)) || magic != "HOPOUT" || (version < 1 || version > 5) ||
         candidate.name.empty() || candidate.name.size() > 80 || candidate.name.find_first_of("\r\n") != std::string::npos) return false;
     if(version>=2 && (!(in>>candidate.category>>candidate.full_distance>>candidate.hidden_distance)||
         candidate.category<0||candidate.category>1||!valid_fade(candidate.full_distance,candidate.hidden_distance)))return false;
@@ -77,6 +80,11 @@ inline bool read_route(std::istream &in, route &out) {
         for(const auto &label:{candidate.stand_label,candidate.look_label})
             if(label.size()>120||label.find_first_of("\r\n")!=std::string::npos)return false;
         candidate.shown=shown!=0;
+    }
+    if(version>=5) {
+        int guide=0;
+        if(!(in>>guide>>candidate.vehicle_shape>>std::quoted(candidate.vehicle_label))||guide<0||guide>1||candidate.vehicle_shape<0||candidate.vehicle_shape>1||candidate.vehicle_label.size()>80||candidate.vehicle_label.find_first_of("\r\n")!=std::string::npos)return false;
+        candidate.vehicle_guide=guide!=0;
     }
     while (in >> magic) {
         step s;
@@ -95,10 +103,11 @@ inline bool read_route(std::istream &in, route &out) {
     out = std::move(candidate); return true;
 }
 inline void write_route(std::ostream &out, const route &r) {
-    out << std::setprecision(9) << "HOPOUT 4 " << std::quoted(r.name) << ' ' << r.category << ' '
+    out << std::setprecision(9) << "HOPOUT 5 " << std::quoted(r.name) << ' ' << r.category << ' '
         << r.full_distance << ' ' << r.hidden_distance;
     for(const auto &s:{r.stand_style,r.look_style})out<<' '<<s.colour[0]<<' '<<s.colour[1]<<' '<<s.colour[2]<<' '<<s.shape<<' '<<s.size;
-    out<<' '<<r.show_labels<<' '<<std::quoted(r.stand_label)<<' '<<std::quoted(r.look_label)<<' '<<r.shown<<'\n';
+    out<<' '<<r.show_labels<<' '<<std::quoted(r.stand_label)<<' '<<std::quoted(r.look_label)<<' '<<r.shown
+       <<' '<<r.vehicle_guide<<' '<<r.vehicle_shape<<' '<<std::quoted(r.vehicle_label)<<'\n';
     for (const auto &s : r.steps)
         out << "step " << s.stand.x << ' ' << s.stand.y << ' ' << s.stand.z << ' '
             << s.look.x << ' ' << s.look.y << ' ' << s.look.z << ' ' << s.radius << ' ' << s.aim << ' ' << s.delay << ' '

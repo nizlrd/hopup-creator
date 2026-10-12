@@ -17,11 +17,14 @@ See [SERVER-RULES.md](SERVER-RULES.md) for the checklist.
 - Captures a standing position and look target with F6.
 - Saves named `.hopout` route files beside the add-on.
 - Displays checked routes nearby with editable labels, instructions, colours, shapes and distance fades.
+- Lets you toggle, edit and share each hopup route from the simple list. Share opens the saved `.hopout` file so it can be copied to another learner.
+- Shows the closest active hopup's instructions in a top-left guide box, tied to that hopup's visibility distance and toggle state.
+- Offers an optional dot or simple wireframe vehicle placement guide with a custom label such as `PUT REVOLTER HERE`.
 - Supports optional multi-step routes, aimed placement and wall anchored notes under Advanced options.
 - F11 hides all overlays and pauses reads; F12 saves the current route.
 - Reads only the local process position and camera. It does not write game memory, automate movement, simulate input, call game natives or make network requests.
 
-It currently targets FiveM GTA build 3258 and ReShade API 18. It does not detect mantle animations, perform physics raycasts or promise that a marker is reachable.
+It currently targets FiveM GTA build 3258 and ReShade API 18. It does not detect mantle animations, perform physics raycasts, place vehicles or promise that a marker is reachable. The vehicle outline is an approximate visual reference that you position manually.
 
 ## Install and build
 

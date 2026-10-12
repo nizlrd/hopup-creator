@@ -13,12 +13,14 @@ int main() {
     annotated.steps[0].wall_text=true;annotated.steps[0].active_only=true;
     annotated.steps[0].info_position={12,34,56};
     annotated.stand_style={{1,.2f,.3f},2,24};annotated.look_style={{.7f,.1f,1},1,16};annotated.show_labels=false;
+    annotated.vehicle_guide=true;annotated.vehicle_shape=1;annotated.vehicle_label="PUT REVOLTER HERE";
     std::stringstream notes;write_route(notes,annotated);route restored;
     assert(read_route(notes,restored));assert(restored.category==1&&restored.full_distance==3&&restored.hidden_distance==18);
     assert(restored.steps[0].info==annotated.steps[0].info&&restored.steps[0].wall_text&&restored.steps[0].active_only);
     assert(restored.steps[0].info_position.z==56);
     assert(restored.stand_style.colour[0]==1&&restored.stand_style.colour[1]==.2f&&restored.stand_style.shape==2&&restored.stand_style.size==24);
     assert(restored.look_style.colour[0]==.7f&&restored.look_style.shape==1&&restored.look_style.size==16&&!restored.show_labels);
+    assert(restored.vehicle_guide&&restored.vehicle_shape==1&&restored.vehicle_label=="PUT REVOLTER HERE");
     for(int invalid=0;invalid<4;++invalid){
         auto broken=annotated;
         if(invalid==0)broken.stand_style.colour[0]=1.1f;

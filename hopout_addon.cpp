@@ -4,6 +4,8 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdio>
+#include <windows.h>
+#include <shellapi.h>
 
 namespace {
 namespace fs = std::filesystem;
@@ -24,6 +26,13 @@ char route_name[81]="My hopout", instruction[241]="Mantle now using your usual g
 char info_text[601]={};
 char stand_label[121]="STAND HERE", look_label[121]="LOOK HERE";
 std::string status="Click Create a hopup to get started.";
+
+void share_route(const hopout::route &r) {
+    if(r.source_path.empty() || !fs::exists(r.source_path)) { status="Save this hopup before sharing it."; return; }
+    std::wstring args=L"/select,\""+r.source_path+L"\"";
+    ShellExecuteW(nullptr,L"open",L"explorer.exe",args.c_str(),nullptr,SW_SHOWNORMAL);
+    status="Opened the route file in Explorer. Share the .hopout file with your learners.";
+}
 
 bool has_pending() {return have_stand||have_look||have_info_position||info_text[0]||editing_step>=0;}
 void pause_telemetry() {
@@ -167,9 +176,12 @@ void advanced_settings(reshade::api::effect_runtime *) {
     category_filter=1;
     const auto count=std::count_if(routes.begin(),routes.end(),[](const auto &r){return r.category==1;});
     ImGui::Text("Saved hopups: %d",static_cast<int>(count));
-    if(ImGui::Button("New hopup"))new_route(1);
+    if(ImGui::Button("+ New hopup"))new_route(1);
     if(editing) {
         ImGui::InputText("Route name",route_name,sizeof(route_name));
+        ImGui::InputText("Instructions",info_text,sizeof(info_text));
+        ImGui::Checkbox("Show a vehicle placement guide",&draft.vehicle_guide);
+        if(draft.vehicle_guide) { ImGui::Combo("Vehicle guide",&draft.vehicle_shape,"Dot\0Simple vehicle outline\0"); ImGui::Text("Vehicle label: %s",draft.vehicle_label.c_str()); }
         draft.category=1;
         if(ImGui::Button("Save hopup (F12)"))save();
         ImGui::TextWrapped("Save includes your current complete stand/look markers. Each named hopup is stored separately and loads again next launch.");
@@ -253,7 +265,7 @@ void settings(reshade::api::effect_runtime *runtime) {
     if(!enabled)ImGui::TextUnformatted("Game position / camera reads are off.");
     else if(!live)ImGui::TextWrapped("Create or select a hopup to read your position. Requires FiveM GTA build 3258.");
     ImGui::TextWrapped("%s",status.c_str());
-    if(ImGui::Button("Create a hopup"))new_route(1);
+    if(ImGui::Button("+ New hopup"))new_route(1);
     ImGui::Separator();
     if(editing) {
         ImGui::InputText("Name your hopup",route_name,sizeof(route_name));
@@ -274,6 +286,13 @@ void settings(reshade::api::effect_runtime *runtime) {
         ImGui::TextWrapped("Write what to do here, such as: Stand on the corner, aim at the sign, then mantle. Leave blank for no box. Instructions save with this hopup and fade with its markers.");
         ImGui::InputText("Standing marker text",stand_label,sizeof(stand_label));
         ImGui::InputText("Look marker text",look_label,sizeof(look_label));
+        ImGui::Checkbox("Show vehicle placement guide",&draft.vehicle_guide);
+        if(draft.vehicle_guide) {
+            ImGui::Combo("Vehicle guide style",&draft.vehicle_shape,"Dot\0Simple vehicle outline\0");
+            char vehicle_label[121]; std::snprintf(vehicle_label,sizeof(vehicle_label),"%s",draft.vehicle_label.c_str());
+            if(ImGui::InputText("Vehicle label",vehicle_label,sizeof(vehicle_label)))draft.vehicle_label=vehicle_label;
+            ImGui::TextWrapped("This is a visual reference only. Place the vehicle yourself and follow the server rules.");
+        }
         appearance_editor();
         ImGui::TextUnformatted("Show nearby only");
         ImGui::SliderFloat("Fully visible within",&draft.full_distance,0.f,100.f,"%.1f m",ImGuiSliderFlags_AlwaysClamp);
@@ -291,13 +310,15 @@ void settings(reshade::api::effect_runtime *runtime) {
         for(size_t i=0;i<routes.size();++i)if(routes[i].category==1) {
             any=true;ImGui::PushID(static_cast<int>(i));
             bool show=routes[i].shown;
-            if(ImGui::Checkbox("Show",&show)){
+            if(ImGui::Checkbox("Toggle hop",&show)){
                 auto updated=routes[i];updated.shown=show;
                 if(store_route(updated,updated.source_path))routes[i].shown=show;
                 pause_telemetry();
             }
             ImGui::SameLine();ImGui::TextUnformatted(routes[i].name.c_str());
-            ImGui::SameLine();if(ImGui::Button("Edit"))edit_route(i);
+            ImGui::SameLine();if(ImGui::Button("Edit hopup"))edit_route(i);
+            ImGui::SameLine();if(ImGui::Button("Share"))share_route(routes[i]);
+            ImGui::Text("Visibility: %.0f-%.0f m%s",routes[i].full_distance,routes[i].hidden_distance,routes[i].vehicle_guide?" | vehicle guide":"");
             ImGui::PopID();
         }
         if(!any)ImGui::TextWrapped("No hopups saved yet. Click Create a hopup to make your first.");
@@ -338,6 +359,30 @@ void info_box(const hopout::step &s,float alpha) {
 }
 ImU32 marker_colour(const hopout::marker_style &style,float alpha=1) {
     return ImGui::ColorConvertFloat4ToU32({style.colour[0],style.colour[1],style.colour[2],alpha});
+}
+void marker(hopout::vec3 point, ImU32 color, const char *label, bool ring, float radius,
+    const hopout::marker_style &style, bool labels);
+void vehicle_marker(hopout::vec3 point, const hopout::route &r, float alpha) {
+    if(!r.vehicle_guide || alpha<=.005f)return;
+    auto draw=ImGui::GetBackgroundDrawList(); const auto size=ImGui::GetIO().DisplaySize;
+    if(r.vehicle_shape==0) { marker(point,marker_colour(r.stand_style,alpha),r.vehicle_label.c_str(),false,0.65f,r.stand_style,r.show_labels); return; }
+    const float length=2.2f,width=1.05f,z=point.z-.8f;
+    const hopout::vec3 corners[]={{point.x-length*.5f,point.y-width*.5f,z},{point.x+length*.5f,point.y-width*.5f,z},{point.x+length*.5f,point.y+width*.5f,z},{point.x-length*.5f,point.y+width*.5f,z}};
+    ImU32 color=marker_colour(r.stand_style,alpha);
+    for(int i=0;i<4;++i){float ax,ay,aw,bx,by,bw;if(hopout::project(corners[i],snapshot.matrix,ax,ay,aw)&&hopout::project(corners[(i+1)%4],snapshot.matrix,bx,by,bw))draw->AddLine(screen(ax,ay,size),screen(bx,by,size),color,2);}
+    float x,y,w;if(hopout::project({point.x,point.y,z+1},snapshot.matrix,x,y,w)&&std::abs(x)<1&&std::abs(y)<1)draw->AddText(screen(x,y,size),color,r.vehicle_label.c_str());
+}
+void nearest_guide_box(const hopout::route &r, const hopout::step &s, float metres) {
+    if(s.info.empty()&&s.action.empty())return;
+    ImGui::SetNextWindowPos({20,20},ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(.9f);
+    if(ImGui::Begin("Hopup guide##top-left",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoFocusOnAppearing)) {
+        ImGui::Text("HOPUP: %s  |  %.1f m",r.name.c_str(),metres);
+        ImGui::TextWrapped("%s",s.info.empty()?s.action.c_str():s.info.c_str());
+        if(!s.info.empty()&&!s.action.empty())ImGui::TextWrapped("Next: %s",s.action.c_str());
+        ImGui::Text("Visibility %.0f-%.0f m",r.full_distance,r.hidden_distance);
+    }
+    ImGui::End();
 }
 void marker(hopout::vec3 point, ImU32 color, const char *label, bool ring=false, float radius=.65f,
     const hopout::marker_style &style=hopout::marker_style{},bool labels=true) {
@@ -403,6 +448,7 @@ void draw(reshade::api::effect_runtime *runtime) {
     if(live && editing) {
         const float alpha=have_stand?hopout::proximity_alpha(hopout::distance(snapshot.player,pending.stand),draft.full_distance,draft.hidden_distance):0;
         if(have_stand)marker(pending.stand,marker_colour(draft.stand_style,alpha),stand_label,true,pending.radius,draft.stand_style,draft.show_labels);
+        if(have_stand)vehicle_marker(pending.stand,draft,alpha);
         if(have_look)marker(pending.look,marker_colour(draft.look_style,alpha),look_label,false,.65f,draft.look_style,draft.show_labels);
         for(const auto &s:draft.steps)info_box(s,hopout::proximity_alpha(hopout::distance(snapshot.player,s.stand),draft.full_distance,draft.hidden_distance));
         if(have_stand && (!pending.wall_text||have_info_position)) {
@@ -412,14 +458,21 @@ void draw(reshade::api::effect_runtime *runtime) {
         hopout::vec3 preview;
         if(advanced_mode&&hopout::aim_point(snapshot.inverse,marker_distance,preview))marker(preview,IM_COL32(255,218,96,255),"AIM PLACEMENT");
     }
-    if(live&&!editing)for(const auto &r:routes)if(r.category==1&&r.shown) {
+    if(live&&!editing) {
+        const hopout::route *nearest_route=nullptr; const hopout::step *nearest_step=nullptr; float nearest_distance=1e9f;
+        for(const auto &r:routes)if(r.category==1&&r.shown) {
         for(const auto &step:r.steps) {
             const float alpha=hopout::proximity_alpha(hopout::distance(snapshot.player,step.stand),r.full_distance,r.hidden_distance);
             if(alpha<=.005f)continue;
+            const float metres=hopout::distance(snapshot.player,step.stand);
+            if(metres<nearest_distance){nearest_distance=metres;nearest_route=&r;nearest_step=&step;}
             marker(step.stand,marker_colour(r.stand_style,alpha),r.stand_label.c_str(),true,step.radius,r.stand_style,r.show_labels);
             marker(step.look,marker_colour(r.look_style,alpha),r.look_label.c_str(),false,.65f,r.look_style,r.show_labels);
+            vehicle_marker(step.stand,r,alpha);
             info_box(step,alpha);
         }
+        }
+        if(nearest_route&&nearest_step)nearest_guide_box(*nearest_route,*nearest_step,nearest_distance);
     }
     // Keep capture help out of the editor and away from world-space instructions.
     if(!editing||!keys)return;
