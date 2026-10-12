@@ -1,0 +1,14 @@
+﻿# Build output, local tools and generated files
+bin/
+.tools/
+*.addon64
+*.exe
+.env*
+*.key
+*_public_key.hpp
+HopoutGuide-routes/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+.vs/
+.vscode/
