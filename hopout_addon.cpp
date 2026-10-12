@@ -435,7 +435,7 @@ void draw(reshade::api::effect_runtime *runtime) {
             ImGui::TextUnformatted("F11  Show / hide     F12  Save route");
             ImGui::TextWrapped("%s",status.c_str());
             ImGui::Text("Aim distance: %.1f m | Draft: %d steps",marker_distance,static_cast<int>(draft.steps.size()));
-            ImGui::TextWrapped("Open ReShade > Add-ons > Hopout Guide to adjust markers and save.");
+            ImGui::TextWrapped("Open ReShade > Add-ons > Hopup Creator to adjust markers and save.");
         }
     }
     ImGui::End();
