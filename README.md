@@ -28,6 +28,12 @@ It currently targets FiveM GTA build 3258 and ReShade API 18. It does not detect
 
 ## Install and build
 
+### Download and drag into plugins
+
+For a ready-to-use build, download the latest [HopupCreator-Educational.zip](https://github.com/nizlrd/hopup-creator/releases/latest/download/HopupCreator-Educational.zip). Close FiveM, extract `HopupCreator-Educational.addon64`, and drag that file into the ReShade add-on/plugins folder you already use. Start FiveM and enable it under ReShade > Add-ons. The package includes this guide and the server-rules checklist.
+
+When the repository is updated, a new release package is published at the same **latest** link. Download the latest package and replace the old `.addon64` with FiveM closed; installed files do not silently self-update.
+
 This source expects the official ReShade **Add-on** build and matching API 18/ImGui 1.92.2b headers. Obtain those from the official ReShade project; they are not redistributed here. The included build script uses the parent ReShade checkout's `.tools` toolchain.
 
 From this repository, run:

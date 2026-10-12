@@ -2,6 +2,8 @@
 bin/
 .tools/
 *.addon64
+!dist/
+!dist/HopupCreator-Educational.addon64
 *.exe
 .env*
 *.key
