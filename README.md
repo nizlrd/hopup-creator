@@ -62,3 +62,7 @@ Contributions should preserve the read-only boundary, fail closed on unsupported
 ## License
 
 Original project code is released under the MIT License. The `vendor/` notices document upstream provenance retained from the source project. ReShade and its headers remain under their own licenses; this repository does not grant rights to redistribute them.
+
+## Multi-step hopups
+
+After capturing the first Stand Here and Look Here markers, choose **+ Add another Stand Here** to continue the same hopup. Each step has its own stand and look marker. Use **Place stand at aim distance** when you need to place a marker at an approximate distance, then adjust it in Advanced options. Save once all steps are captured.

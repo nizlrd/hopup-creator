@@ -54,6 +54,12 @@ bool add_pending_step() {
     editing_step=-1;pending={};info_text[0]=0;have_stand=have_look=have_info_position=false;
     return true;
 }
+bool add_another_step() {
+    if(!have_stand||!have_look){status="Capture the current Stand Here and Look Here markers first.";return false;}
+    if(!add_pending_step())return false;
+    status="Stand Here marker added. Capture the next starting point, then its look target.";
+    return true;
+}
 void new_route(int category) {
     if(!draft.steps.empty()||has_pending()){status="Save your current draft before creating another hopup.";editing=true;return;}
     draft={};draft.category=category;pending={};editing_step=-1;
@@ -269,7 +275,7 @@ void settings(reshade::api::effect_runtime *runtime) {
     ImGui::Separator();
     if(editing) {
         ImGui::InputText("Name your hopup",route_name,sizeof(route_name));
-        ImGui::TextUnformatted(!have_stand?"1. Stand where the hopup starts.":!have_look?"2. Aim where you need to look.":"3. Ready to save your hopup.");
+        ImGui::TextUnformatted(!have_stand?"1. Stand where this step starts.":!have_look?"2. Aim where this step should look.":"Step ready. Save it or add another Stand Here.");
         ImGui::BeginDisabled(!live);
         if(!have_stand) {
             if(ImGui::Button("Save where I am standing (F6)"))capture_stand(false);
@@ -278,8 +284,16 @@ void settings(reshade::api::effect_runtime *runtime) {
         } else {
             if(ImGui::Button("Redo standing point")){capture_stand(false);have_look=false;}
             ImGui::SameLine();if(ImGui::Button("Redo look direction"))have_look=false;
+            ImGui::SameLine();if(ImGui::Button("Place stand at aim distance")){capture_stand(true);have_look=false;}
         }
         ImGui::EndDisabled();
+        if(have_stand&&have_look) {
+            ImGui::Text("Steps in this hopup: %d",static_cast<int>(draft.steps.size()+1));
+            if(ImGui::Button("+ Add another Stand Here"))add_another_step();
+            ImGui::SameLine();ImGui::TextDisabled("Each step gets its own stand and look marker.");
+        } else if(!draft.steps.empty()) {
+            ImGui::Text("Saved steps waiting: %d",static_cast<int>(draft.steps.size()));
+        }
         ImGui::TextWrapped("Close the ReShade menu to move or aim, then press F6 for the step shown above.");
         ImGui::TextUnformatted("Instructions box (optional)");
         ImGui::InputTextMultiline("##HopupInstructions",info_text,sizeof(info_text),ImVec2(-1,90));

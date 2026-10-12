@@ -57,8 +57,10 @@ int main() {
     new_route(1);
     assert(std::string(route_name)=="Hopup 2");
     pending.stand={10,20,30};pending.look={40,50,60};have_stand=have_look=true;
+    assert(add_another_step()&&draft.steps.size()==1&&!have_stand&&!have_look);
+    pending.stand={11,21,31};pending.look={41,51,61};have_stand=have_look=true;
     save();
-    assert(routes.size()==2&&routes[selected].name=="Hopup 2");
+    assert(routes.size()==2&&routes[selected].name=="Hopup 2"&&routes[selected].steps.size()==2);
     reload();
     assert(routes.size()==2&&routes[0].steps[0].stand.x==1&&routes[1].steps[0].stand.x==10);
     assert(routes[0].stand_style.shape==2&&routes[0].stand_style.colour[0]==1&&routes[0].stand_style.size==22);
